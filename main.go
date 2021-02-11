@@ -3,8 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 )
 
@@ -12,6 +15,12 @@ var (
 	version = "dev"
 	commit  = "none"
 )
+
+// DownloadFiles ダウンロード対象のファイル情報
+type DownloadFiles struct {
+	baseURL   string
+	fileNames []string
+}
 
 func main() {
 
@@ -24,12 +33,14 @@ func main() {
 	var groupID string
 	var artifactID string
 	var version string
+	var baseDir string
 	var help bool
 
-	flag.StringVar(&repo, "r", "", "repository url")
+	flag.StringVar(&repo, "r", "", "Repository URL")
 	flag.StringVar(&groupID, "g", "", "Group ID")
 	flag.StringVar(&artifactID, "a", "", "Artifact ID")
-	flag.StringVar(&version, "v", "", "version")
+	flag.StringVar(&version, "v", "", "Version")
+	flag.StringVar(&baseDir, "d", "", "Save Directory")
 	flag.BoolVar(&help, "h", false, "Help")
 	flag.Parse()
 
@@ -38,21 +49,62 @@ func main() {
 		os.Exit(0)
 	}
 
-	if repo == "" || groupID == "" || artifactID == "" || version == "" {
+	if repo == "" || groupID == "" || artifactID == "" || version == "" || baseDir == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
 
 }
 
-func createDownloadURLs(repo string, groupID string, artifactID string, version string) ([]string, error) {
+func download(repo string, groupID string, artifactID string, version string, baseDir string) error {
+
+	saveDir := filepath.Join(baseDir, strings.ReplaceAll(groupID, ".", "/"), artifactID, version)
+
+	err := os.MkdirAll(saveDir, 0777)
+	if err != nil {
+		return err
+	}
+
+	downloadURLs, err := createDownloadURLs(repo, groupID, artifactID, version)
+
+	if err != nil {
+		return err
+	}
+
+	for _, fileName := range downloadURLs.fileNames {
+
+		resp, err := http.Get(path.Join(downloadURLs.baseURL, fileName))
+		if err != nil {
+			return err
+		}
+		defer resp.Body.Close()
+
+		out, err := os.Create(filepath.Join(saveDir, fileName))
+		if err != nil {
+			return err
+		}
+		defer out.Close()
+
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func createDownloadURLs(repo string, groupID string, artifactID string, version string) (DownloadFiles, error) {
 
 	baseURL := path.Join(repo, strings.ReplaceAll(groupID, ".", "/"), artifactID, version)
 	baseName := artifactID + "-" + version
 
-	return []string{
-		path.Join(baseURL, baseName+".pom"),
-		path.Join(baseURL, baseName+".jar"),
-		path.Join(baseURL, baseName+"-sources.jar"),
-		path.Join(baseURL, baseName+"-javadoc.jar")}, nil
+	return DownloadFiles{
+			baseURL: baseURL,
+			fileNames: []string{
+				baseName + ".pom",
+				baseName + ".jar",
+				baseName + "-sources.jar",
+				baseName + "-javadoc.jar"}},
+		nil
 }
