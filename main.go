@@ -113,7 +113,7 @@ func downloadFile(url string, savePath string) error {
 		return err
 	}
 
-	fmt.Printf("%s\n", savePath)
+	fmt.Print("saved\n")
 
 	return nil
 }
