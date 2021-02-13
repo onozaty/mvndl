@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -56,7 +57,7 @@ func main() {
 
 }
 
-func download(repo string, groupID string, artifactID string, version string, baseDir string) error {
+func downloadFiles(repo string, groupID string, artifactID string, version string, baseDir string) error {
 
 	saveDir := filepath.Join(baseDir, strings.ReplaceAll(groupID, ".", "/"), artifactID, version)
 
@@ -66,26 +67,18 @@ func download(repo string, groupID string, artifactID string, version string, ba
 	}
 
 	downloadURLs, err := createDownloadURLs(repo, groupID, artifactID, version)
-
 	if err != nil {
 		return err
 	}
 
 	for _, fileName := range downloadURLs.fileNames {
 
-		resp, err := http.Get(path.Join(downloadURLs.baseURL, fileName))
+		url, err := joinURL(downloadURLs.baseURL, fileName)
 		if err != nil {
 			return err
 		}
-		defer resp.Body.Close()
 
-		out, err := os.Create(filepath.Join(saveDir, fileName))
-		if err != nil {
-			return err
-		}
-		defer out.Close()
-
-		_, err = io.Copy(out, resp.Body)
+		err = downloadFile(url, filepath.Join(saveDir, fileName))
 		if err != nil {
 			return err
 		}
@@ -94,12 +87,47 @@ func download(repo string, groupID string, artifactID string, version string, ba
 	return nil
 }
 
-func createDownloadURLs(repo string, groupID string, artifactID string, version string) (DownloadFiles, error) {
+func downloadFile(url string, savePath string) error {
 
-	baseURL := path.Join(repo, strings.ReplaceAll(groupID, ".", "/"), artifactID, version)
+	fmt.Printf("%s -> ", url)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		fmt.Printf("skipped (%s)\n", resp.Status)
+		return nil
+	}
+
+	out, err := os.Create(savePath)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("%s\n", savePath)
+
+	return nil
+}
+
+func createDownloadURLs(repo string, groupID string, artifactID string, version string) (*DownloadFiles, error) {
+
+	baseURL, err := joinURL(repo, strings.ReplaceAll(groupID, ".", "/"), artifactID, version)
+	if err != nil {
+		return nil, err
+	}
+
 	baseName := artifactID + "-" + version
 
-	return DownloadFiles{
+	return &DownloadFiles{
 			baseURL: baseURL,
 			fileNames: []string{
 				baseName + ".pom",
@@ -107,4 +135,18 @@ func createDownloadURLs(repo string, groupID string, artifactID string, version 
 				baseName + "-sources.jar",
 				baseName + "-javadoc.jar"}},
 		nil
+}
+
+func joinURL(elem ...string) (string, error) {
+
+	baseURL, err := url.Parse(elem[0])
+	if err != nil {
+		return "", err
+	}
+
+	for _, elm := range elem[1:] {
+		baseURL.Path = path.Join(baseURL.Path, elm)
+	}
+
+	return baseURL.String(), nil
 }
