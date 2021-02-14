@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,6 +9,8 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+
+	flag "github.com/spf13/pflag"
 )
 
 var (
@@ -37,13 +38,14 @@ func main() {
 	var baseDir string
 	var help bool
 
-	flag.StringVar(&repo, "r", "", "Repository (\"jcenter\" or \"central\" or Specify by url)")
-	flag.StringVar(&groupID, "g", "", "Group ID")
-	flag.StringVar(&artifactID, "a", "", "Artifact ID")
-	flag.StringVar(&version, "v", "", "Version")
-	flag.StringVar(&baseDir, "d", "", "Save Directory")
-	flag.BoolVar(&help, "h", false, "Help")
+	flag.StringVarP(&repo, "repository", "r", "", "Maven repository (\"jcenter\" or \"central\" or Specify by url)")
+	flag.StringVarP(&groupID, "group", "g", "", "Group ID")
+	flag.StringVarP(&artifactID, "artifact", "a", "", "Artifact ID")
+	flag.StringVarP(&version, "version", "v", "", "Version")
+	flag.StringVarP(&baseDir, "dest", "d", "", "Destination directory for download files")
+	flag.BoolVarP(&help, "help", "h", false, "Help")
 	flag.Parse()
+	flag.CommandLine.SortFlags = false
 
 	if help {
 		flag.Usage()
