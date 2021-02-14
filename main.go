@@ -37,7 +37,7 @@ func main() {
 	var baseDir string
 	var help bool
 
-	flag.StringVar(&repo, "r", "", "Repository URL")
+	flag.StringVar(&repo, "r", "", "Repository (\"jcenter\" or \"central\" or Specify by url)")
 	flag.StringVar(&groupID, "g", "", "Group ID")
 	flag.StringVar(&artifactID, "a", "", "Artifact ID")
 	flag.StringVar(&version, "v", "", "Version")
@@ -55,6 +55,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	err := downloadFiles(repo, groupID, artifactID, version, baseDir)
+	if err != nil {
+		fmt.Println("\nError: ", err)
+		os.Exit(1)
+	}
 }
 
 func downloadFiles(repo string, groupID string, artifactID string, version string, baseDir string) error {
@@ -120,7 +125,7 @@ func downloadFile(url string, savePath string) error {
 
 func createDownloadURLs(repo string, groupID string, artifactID string, version string) (*DownloadFiles, error) {
 
-	baseURL, err := joinURL(repo, strings.ReplaceAll(groupID, ".", "/"), artifactID, version)
+	baseURL, err := joinURL(repoURL(repo), strings.ReplaceAll(groupID, ".", "/"), artifactID, version)
 	if err != nil {
 		return nil, err
 	}
@@ -149,4 +154,16 @@ func joinURL(elem ...string) (string, error) {
 	}
 
 	return baseURL.String(), nil
+}
+
+func repoURL(repo string) string {
+
+	switch repo {
+	case "jcenter":
+		return "https://jcenter.bintray.com/"
+	case "central":
+		return "https://repo1.maven.org/maven2/"
+	default:
+		return repo
+	}
 }

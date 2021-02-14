@@ -102,3 +102,43 @@ func TestCreateDownloadURLs(t *testing.T) {
 		t.Fatal("failed test\n", downloadFiles)
 	}
 }
+
+func TestCreateDownloadURLsJCenter(t *testing.T) {
+
+	repo := "jcenter"
+	groupID := "com.github.onozaty"
+	artifactID := "mvndl"
+	version := "1.0.0"
+
+	expect := &DownloadFiles{
+		baseURL: "https://jcenter.bintray.com/com/github/onozaty/mvndl/1.0.0",
+		fileNames: []string{
+			"mvndl-1.0.0.pom",
+			"mvndl-1.0.0.jar",
+			"mvndl-1.0.0-sources.jar",
+			"mvndl-1.0.0-javadoc.jar"}}
+
+	downloadFiles, err := createDownloadURLs(repo, groupID, artifactID, version)
+	if err != nil {
+		t.Fatal("failed test\n", err)
+	}
+
+	if !reflect.DeepEqual(downloadFiles, expect) {
+		t.Fatal("failed test\n", downloadFiles)
+	}
+}
+
+func TestRepoURL(t *testing.T) {
+
+	if repoURL("jcenter") != "https://jcenter.bintray.com/" {
+		t.Fatal("failed test\n")
+	}
+
+	if repoURL("central") != "https://repo1.maven.org/maven2/" {
+		t.Fatal("failed test\n")
+	}
+
+	if repoURL("http://example.com") != "http://example.com" {
+		t.Fatal("failed test\n")
+	}
+}
